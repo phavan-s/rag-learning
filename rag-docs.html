@@ -1,0 +1,1610 @@
+  <!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RAG — Retrieval-Augmented Generation · Learning Docs</title>
+  <style>
+    /* ─── Palette ────────────────────────────────────────────
+       #000000  deep black  (darkest shadow)
+       #1F150C  dark espresso (page background)
+       #412D15  warm brown   (surface / card background)
+       #E1DCC9  soft cream   (primary text / accents)
+    ──────────────────────────────────────────────────────── */
+    :root {
+      --bg:          #1F150C;
+      --deep:        #000000;
+      --surface:     #412D15;
+      --surface-hi:  #523720;
+      --text:        #E1DCC9;
+      --text-muted:  #9A8E7E;
+      --text-dim:    #6B5E4F;
+
+      /* neumorphic shadows (raised element on --bg) */
+      --neu-raised:  8px 8px 22px #000000, -8px -8px 22px #412D15;
+      --neu-sm:      5px 5px 12px #000000, -5px -5px 12px #412D15;
+      --neu-inset:   inset 5px 5px 14px #000000, inset -5px -5px 14px #412D15;
+      --neu-pressed: inset 3px 3px 8px #000000, inset -3px -3px 8px #412D15;
+
+      /* neumorphic shadows (raised element on --surface) */
+      --neu-s-raised: 5px 5px 14px #1F150C, -5px -5px 14px #5C3F1E;
+      --neu-s-inset:  inset 4px 4px 10px #1F150C, inset -4px -4px 10px #5C3F1E;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; font-size: 16px; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      line-height: 1.75;
+      min-height: 100vh;
+    }
+
+    /* ── Scrollbar ─────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: var(--deep); }
+    ::-webkit-scrollbar-thumb { background: var(--surface); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--surface-hi); }
+
+    /* ── Nav ───────────────────────────────────────────────── */
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--deep);
+      border-bottom: 1px solid var(--surface);
+      padding: 0 2rem;
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+      height: 56px;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    nav::-webkit-scrollbar { height: 0; }
+    .nav-brand {
+      font-size: 1.1rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      color: var(--text);
+      white-space: nowrap;
+      margin-right: 1.5rem;
+      flex-shrink: 0;
+    }
+    .nav-brand span { color: var(--text-muted); font-weight: 400; }
+    nav a {
+      text-decoration: none;
+      color: var(--text-muted);
+      font-size: 0.82rem;
+      letter-spacing: 0.04em;
+      padding: 0.35rem 0.85rem;
+      border-radius: 20px;
+      white-space: nowrap;
+      flex-shrink: 0;
+      transition: all 0.2s ease;
+    }
+    nav a:hover {
+      color: var(--text);
+      background: var(--surface);
+      box-shadow: var(--neu-sm);
+    }
+
+    /* ── Hero ──────────────────────────────────────────────── */
+    .hero {
+      text-align: center;
+      padding: 5rem 2rem 4rem;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse 70% 50% at 50% 0%, #412D1520 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .hero-badge {
+      display: inline-block;
+      background: var(--surface);
+      box-shadow: var(--neu-sm);
+      color: var(--text-muted);
+      font-size: 0.75rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      padding: 0.35rem 1.2rem;
+      border-radius: 20px;
+      margin-bottom: 2rem;
+    }
+    .hero h1 {
+      font-size: clamp(3.5rem, 10vw, 7rem);
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      line-height: 1.05;
+      color: var(--text);
+      margin-bottom: 1.25rem;
+    }
+    .hero h1 .rag-letter {
+      display: inline-block;
+      text-shadow: 0 0 60px #412D1560;
+    }
+    .hero-subtitle {
+      font-size: clamp(1rem, 2.5vw, 1.25rem);
+      color: var(--text-muted);
+      max-width: 600px;
+      margin: 0 auto 2.5rem;
+    }
+    .hero-pills {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 0.75rem;
+    }
+    .hero-pill {
+      background: var(--bg);
+      box-shadow: var(--neu-raised);
+      color: var(--text);
+      font-size: 0.8rem;
+      padding: 0.45rem 1.1rem;
+      border-radius: 20px;
+      letter-spacing: 0.03em;
+    }
+
+    /* ── Layout ────────────────────────────────────────────── */
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 2rem;
+    }
+    section { padding: 4rem 0; }
+    section + section { border-top: 1px solid #412D1530; }
+
+    .section-label {
+      font-size: 0.72rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 0.6rem;
+    }
+    .section-title {
+      font-size: clamp(1.6rem, 3.5vw, 2.2rem);
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 1rem;
+      line-height: 1.25;
+    }
+    .section-intro {
+      font-size: 1.05rem;
+      color: var(--text-muted);
+      max-width: 680px;
+      margin-bottom: 2.5rem;
+    }
+
+    /* ── Neumorphic Card ───────────────────────────────────── */
+    .neu-card {
+      background: var(--bg);
+      box-shadow: var(--neu-raised);
+      border-radius: 18px;
+      padding: 2rem;
+      transition: box-shadow 0.3s ease, transform 0.3s ease;
+    }
+    .neu-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 12px 12px 28px #000000, -12px -12px 28px #412D15;
+    }
+    .neu-card-inset {
+      background: var(--bg);
+      box-shadow: var(--neu-inset);
+      border-radius: 14px;
+      padding: 1.5rem;
+    }
+
+    /* ── Section: What is RAG ──────────────────────────────── */
+    .analogy-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 1.5rem;
+      margin-top: 2rem;
+    }
+    .analogy-card {
+      background: var(--bg);
+      box-shadow: var(--neu-raised);
+      border-radius: 18px;
+      padding: 1.75rem;
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.3s;
+    }
+    .analogy-card:hover { transform: translateY(-3px); }
+    .analogy-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, #412D15, #E1DCC9, #412D15);
+      opacity: 0.6;
+    }
+    .analogy-icon {
+      font-size: 2.2rem;
+      margin-bottom: 0.9rem;
+      display: block;
+    }
+    .analogy-card h3 {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 0.5rem;
+    }
+    .analogy-card p { font-size: 0.9rem; color: var(--text-muted); }
+
+    /* ── Section: Core Concepts ────────────────────────────── */
+    .concepts-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      gap: 1.5rem;
+    }
+    .concept-card {
+      background: var(--bg);
+      box-shadow: var(--neu-raised);
+      border-radius: 18px;
+      padding: 1.75rem;
+      transition: transform 0.3s, box-shadow 0.3s;
+    }
+    .concept-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 12px 12px 28px #000000, -12px -12px 28px #412D15;
+    }
+    .concept-num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px; height: 36px;
+      background: var(--bg);
+      box-shadow: var(--neu-inset);
+      border-radius: 10px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      margin-bottom: 1rem;
+    }
+    .concept-card h3 {
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 0.6rem;
+    }
+    .concept-card p { font-size: 0.88rem; color: var(--text-muted); line-height: 1.65; }
+
+    /* ── Section: Pipeline Flow ────────────────────────────── */
+    .pipeline-wrapper {
+      margin-top: 2rem;
+    }
+    .pipeline-title {
+      font-size: 0.78rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 1.25rem;
+    }
+    .pipeline {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0;
+      margin-bottom: 3rem;
+    }
+    .p-step {
+      background: var(--bg);
+      box-shadow: var(--neu-raised);
+      border-radius: 14px;
+      padding: 1.1rem 1.4rem;
+      min-width: 140px;
+      text-align: center;
+      flex: 1;
+      position: relative;
+      transition: transform 0.25s;
+    }
+    .p-step:hover { transform: translateY(-3px); }
+    .p-step-num {
+      font-size: 0.65rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 0.25rem;
+    }
+    .p-step-icon { font-size: 1.5rem; display: block; margin-bottom: 0.35rem; }
+    .p-step h4 { font-size: 0.85rem; font-weight: 600; color: var(--text); margin-bottom: 0.2rem; }
+    .p-step p { font-size: 0.73rem; color: var(--text-muted); line-height: 1.4; }
+    .p-step .file-tag {
+      display: inline-block;
+      margin-top: 0.5rem;
+      background: var(--bg);
+      box-shadow: var(--neu-pressed);
+      border-radius: 6px;
+      font-size: 0.65rem;
+      color: var(--text-dim);
+      padding: 0.2rem 0.5rem;
+      font-family: 'Cascadia Code', 'Fira Code', monospace;
+    }
+    .p-arrow {
+      font-size: 1.2rem;
+      color: var(--text-dim);
+      padding: 0 0.35rem;
+      flex-shrink: 0;
+      align-self: center;
+    }
+    @media (max-width: 700px) {
+      .pipeline { flex-direction: column; }
+      .p-arrow { transform: rotate(90deg); }
+    }
+
+    /* ── File Tree ─────────────────────────────────────────── */
+    .filetree {
+      background: var(--bg);
+      box-shadow: var(--neu-inset);
+      border-radius: 16px;
+      padding: 1.75rem 2rem;
+      font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+      font-size: 0.875rem;
+      line-height: 2;
+      color: var(--text-muted);
+    }
+    .filetree .ft-root { color: var(--text); font-weight: 600; }
+    .filetree .ft-folder { color: var(--text); }
+    .filetree .ft-file { color: var(--text-muted); }
+    .filetree .ft-file.entry  { color: var(--text); font-weight: 500; }
+    .filetree .ft-file.route  { color: #C4B49A; }
+    .filetree .ft-file.svc    { color: #A8987E; }
+    .filetree .ft-file.test   { color: #7A6E62; }
+    .filetree .ft-file.config { color: #B0A88F; }
+    .ft-badge {
+      display: inline-block;
+      font-size: 0.62rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 0.1rem 0.45rem;
+      border-radius: 4px;
+      margin-left: 0.75rem;
+      vertical-align: middle;
+      font-family: 'Segoe UI', sans-serif;
+    }
+    .ft-badge.entry  { background: #412D15; color: var(--text); }
+    .ft-badge.route  { background: #3A2510; color: #C4B49A; }
+    .ft-badge.svc    { background: #2E1E0A; color: #A8987E; }
+    .ft-badge.test   { background: #1A1006; color: #7A6E62; }
+    .ft-badge.config { background: #352207; color: #B0A88F; }
+
+    /* ── File Cards ────────────────────────────────────────── */
+    .file-section-label {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+      margin: 2.5rem 0 1.25rem;
+    }
+    .file-section-label h3 {
+      font-size: 0.78rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+    }
+    .file-section-label::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(90deg, #412D1550, transparent);
+    }
+
+    .file-cards { display: grid; gap: 1.25rem; }
+    .file-card {
+      background: var(--bg);
+      box-shadow: var(--neu-raised);
+      border-radius: 16px;
+      overflow: hidden;
+      transition: transform 0.25s, box-shadow 0.25s;
+    }
+    .file-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 10px 10px 26px #000000, -10px -10px 26px #412D15;
+    }
+    .file-card-header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 1.25rem 1.5rem;
+      cursor: pointer;
+      user-select: none;
+    }
+    .file-card-icon {
+      width: 42px; height: 42px;
+      background: var(--bg);
+      box-shadow: var(--neu-inset);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.3rem;
+      flex-shrink: 0;
+    }
+    .file-card-meta { flex: 1; min-width: 0; }
+    .file-card-name {
+      font-family: 'Cascadia Code', 'Fira Code', monospace;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .file-card-role {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      margin-top: 0.15rem;
+    }
+    .file-card-chevron {
+      color: var(--text-dim);
+      font-size: 0.8rem;
+      transition: transform 0.3s;
+      flex-shrink: 0;
+    }
+    .file-card.open .file-card-chevron { transform: rotate(180deg); }
+    .file-card-body {
+      display: none;
+      padding: 0 1.5rem 1.5rem;
+      border-top: 1px solid #412D1540;
+    }
+    .file-card.open .file-card-body { display: block; }
+    .file-card-body p {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      margin-bottom: 1rem;
+      line-height: 1.7;
+    }
+    .file-card-body p:last-child { margin-bottom: 0; }
+
+    .detail-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 0.85rem;
+      margin-top: 1rem;
+    }
+    .detail-item {
+      background: var(--bg);
+      box-shadow: var(--neu-inset);
+      border-radius: 10px;
+      padding: 0.85rem 1rem;
+    }
+    .detail-item label {
+      display: block;
+      font-size: 0.65rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 0.3rem;
+    }
+    .detail-item span {
+      font-size: 0.85rem;
+      color: var(--text);
+    }
+
+    .code-snippet {
+      background: var(--bg);
+      box-shadow: var(--neu-inset);
+      border-radius: 10px;
+      padding: 1rem 1.25rem;
+      font-family: 'Cascadia Code', 'Fira Code', monospace;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      overflow-x: auto;
+      margin-top: 1rem;
+      line-height: 1.6;
+      white-space: pre;
+    }
+
+    .tag-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 0.75rem;
+    }
+    .tag {
+      background: var(--bg);
+      box-shadow: var(--neu-sm);
+      border-radius: 6px;
+      font-size: 0.73rem;
+      color: var(--text-muted);
+      padding: 0.25rem 0.65rem;
+    }
+
+    /* ── Tech Stack ────────────────────────────────────────── */
+    .tech-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 1.25rem;
+    }
+    .tech-card {
+      background: var(--bg);
+      box-shadow: var(--neu-raised);
+      border-radius: 16px;
+      padding: 1.5rem;
+      transition: transform 0.25s;
+    }
+    .tech-card:hover { transform: translateY(-3px); }
+    .tech-pkg {
+      font-family: 'Cascadia Code', 'Fira Code', monospace;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 0.35rem;
+    }
+    .tech-desc { font-size: 0.84rem; color: var(--text-muted); }
+
+    /* ── Diagram: Architecture ─────────────────────────────── */
+    .arch-diagram {
+      background: var(--bg);
+      box-shadow: var(--neu-inset);
+      border-radius: 18px;
+      padding: 2rem;
+      margin-top: 1.5rem;
+    }
+    .arch-row {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+    .arch-row:last-child { margin-bottom: 0; }
+    .arch-label {
+      font-size: 0.68rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      width: 90px;
+      flex-shrink: 0;
+      text-align: right;
+      padding-right: 1rem;
+    }
+    .arch-box {
+      background: var(--bg);
+      box-shadow: var(--neu-sm);
+      border-radius: 10px;
+      padding: 0.55rem 1rem;
+      font-size: 0.8rem;
+      color: var(--text);
+      white-space: nowrap;
+      transition: transform 0.2s;
+    }
+    .arch-box:hover { transform: scale(1.04); }
+    .arch-arrow { color: var(--text-dim); font-size: 1rem; }
+    .arch-divider {
+      width: 100%;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, #412D1560, transparent);
+      margin: 1.25rem 0;
+    }
+    .arch-pipeline-label {
+      font-size: 0.72rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 0.75rem;
+    }
+
+    /* ── Quiz / Callout ────────────────────────────────────── */
+    .callout {
+      background: var(--bg);
+      box-shadow: var(--neu-raised);
+      border-radius: 16px;
+      padding: 1.5rem 1.75rem;
+      display: flex;
+      gap: 1.1rem;
+      align-items: flex-start;
+      margin-top: 1.5rem;
+    }
+    .callout-icon { font-size: 1.6rem; flex-shrink: 0; line-height: 1; }
+    .callout-body h4 { font-size: 0.95rem; font-weight: 600; color: var(--text); margin-bottom: 0.35rem; }
+    .callout-body p { font-size: 0.88rem; color: var(--text-muted); }
+
+    /* ── Footer ────────────────────────────────────────────── */
+    footer {
+      text-align: center;
+      padding: 3rem 2rem;
+      border-top: 1px solid #412D1530;
+      color: var(--text-dim);
+      font-size: 0.82rem;
+      letter-spacing: 0.04em;
+    }
+    footer strong { color: var(--text-muted); }
+
+    /* ── Responsive tweaks ─────────────────────────────────── */
+    @media (max-width: 600px) {
+      .hero { padding: 3.5rem 1.25rem 3rem; }
+      .container { padding: 0 1.25rem; }
+      section { padding: 3rem 0; }
+      .arch-label { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ─── Navigation ───────────────────────────────────────── -->
+<nav>
+  <div class="nav-brand">RAG <span>/ docs</span></div>
+  <a href="#what-is-rag">What is RAG?</a>
+  <a href="#concepts">Core Concepts</a>
+  <a href="#architecture">Architecture</a>
+  <a href="#ingestion">Upload Flow</a>
+  <a href="#query">Query Flow</a>
+  <a href="#files">File Explorer</a>
+  <a href="#tech">Tech Stack</a>
+</nav>
+
+<!-- ─── Hero ─────────────────────────────────────────────── -->
+<header class="hero">
+  <div class="hero-badge">Learning Documentation · RAG System</div>
+  <h1>
+    <span class="rag-letter">R</span><span class="rag-letter">A</span><span class="rag-letter">G</span>
+  </h1>
+  <p class="hero-subtitle">
+    Retrieval-Augmented Generation — a way to give AI a reference book
+    so it answers questions based on <em>your</em> documents, not guesswork.
+  </p>
+  <div class="hero-pills">
+    <span class="hero-pill">📄 PDF Ingestion</span>
+    <span class="hero-pill">✂️ Text Chunking</span>
+    <span class="hero-pill">🧠 Embeddings</span>
+    <span class="hero-pill">🔍 Vector Search</span>
+    <span class="hero-pill">💬 LLM Answer</span>
+    <span class="hero-pill">☁️ AWS Bedrock</span>
+  </div>
+</header>
+
+<!-- ─── Section 1: What is RAG ───────────────────────────── -->
+<section id="what-is-rag">
+  <div class="container">
+    <div class="section-label">The Big Idea</div>
+    <h2 class="section-title">What is RAG — in plain English?</h2>
+    <p class="section-intro">
+      Imagine you hired a very smart employee who reads fast. Before answering
+      your question, they go to a filing cabinet, pull out the most relevant
+      pages, read them, and then give you a precise answer based on what they
+      just read. That is RAG.
+    </p>
+
+    <div class="analogy-grid">
+      <div class="analogy-card">
+        <span class="analogy-icon">🤖</span>
+        <h3>Without RAG — Pure AI</h3>
+        <p>
+          A regular AI only knows what it was trained on months or years ago.
+          Ask it about your internal policy document? It has no idea.
+          It will guess — and often get it wrong. This is called
+          "hallucination".
+        </p>
+      </div>
+      <div class="analogy-card">
+        <span class="analogy-icon">📚</span>
+        <h3>The Filing Cabinet Analogy</h3>
+        <p>
+          RAG gives the AI a filing cabinet — your own documents. When you
+          ask a question, the system first <em>fetches</em> the most relevant
+          pages from your cabinet, then asks the AI to answer
+          <em>using only those pages</em>.
+        </p>
+      </div>
+      <div class="analogy-card">
+        <span class="analogy-icon">🎯</span>
+        <h3>Why RAG wins</h3>
+        <p>
+          The AI's answer is grounded in your actual data. No hallucinations
+          from outdated training. You can update the filing cabinet any time
+          by uploading new documents. The AI just reads; your data drives
+          the answers.
+        </p>
+      </div>
+      <div class="analogy-card">
+        <span class="analogy-icon">⚙️</span>
+        <h3>This Project in One Line</h3>
+        <p>
+          Upload a PDF → chop it into small pieces → turn each piece into
+          numbers → store them → when asked a question, find the most
+          similar pieces → feed them to an AI → get a smart, sourced answer.
+        </p>
+      </div>
+    </div>
+
+    <div class="callout" style="margin-top:2rem;">
+      <span class="callout-icon">💡</span>
+      <div class="callout-body">
+        <h4>The core insight</h4>
+        <p>RAG = <strong>Search engine</strong> + <strong>AI language model</strong> working together.
+        The search engine finds the right pages; the AI reads them and talks to you.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── Section 2: Core Concepts ─────────────────────────── -->
+<section id="concepts">
+  <div class="container">
+    <div class="section-label">Vocabulary</div>
+    <h2 class="section-title">Four concepts you must know</h2>
+    <p class="section-intro">
+      These four ideas are the engine of every RAG system. Understand
+      these and the code will make complete sense.
+    </p>
+    <div class="concepts-grid">
+      <div class="concept-card">
+        <div class="concept-num">01</div>
+        <h3>Chunking ✂️</h3>
+        <p>
+          A 100-page PDF is too big to process at once. We slice it into
+          small overlapping pieces called <em>chunks</em> — like cutting a
+          book into sticky notes. Each chunk is roughly 1000 characters
+          with a 200-character overlap with its neighbor so context is
+          never cut off mid-sentence.
+        </p>
+      </div>
+      <div class="concept-card">
+        <div class="concept-num">02</div>
+        <h3>Embeddings 🔢</h3>
+        <p>
+          An embedding is a list of ~1024 numbers that represent the
+          <em>meaning</em> of a text chunk. Think of it as GPS coordinates
+          for meaning — two chunks that mean similar things get coordinates
+          that are close to each other in a giant mathematical space.
+          AWS Bedrock's Titan model generates these numbers.
+        </p>
+      </div>
+      <div class="concept-card">
+        <div class="concept-num">03</div>
+        <h3>Vector Search 🔍</h3>
+        <p>
+          When you ask a question, the question is also turned into embedding
+          numbers. Then Elasticsearch finds the stored chunks whose numbers
+          are <em>closest</em> (using cosine similarity) to the question's
+          numbers. "Closest numbers" = "most relevant text". This is how the
+          system finds the right pages without keyword matching.
+        </p>
+      </div>
+      <div class="concept-card">
+        <div class="concept-num">04</div>
+        <h3>LLM Answer Generation 💬</h3>
+        <p>
+          The top matching chunks become the <em>context</em>. This context
+          plus your question are sent to an AI language model (Amazon Nova
+          Lite via AWS Bedrock). The model is instructed: "Only answer using
+          this context." The result is a precise, document-grounded reply.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── Section 3: Architecture ──────────────────────────── -->
+<section id="architecture">
+  <div class="container">
+    <div class="section-label">System Design</div>
+    <h2 class="section-title">How every piece connects</h2>
+    <p class="section-intro">
+      This project has two separate flows — uploading a document, and asking
+      a question. They share some services but are completely independent.
+    </p>
+    <div class="arch-diagram">
+      <div class="arch-pipeline-label">① Document Ingestion (happens once per PDF)</div>
+      <div class="arch-row">
+        <div class="arch-label">Input</div>
+        <div class="arch-box">📄 PDF File</div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-box">routes/upload.js</div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-box">pdfService.js<br><small style="font-size:0.7rem;color:var(--text-dim)">extract text</small></div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-box">chunkService.js<br><small style="font-size:0.7rem;color:var(--text-dim)">slice into pieces</small></div>
+      </div>
+      <div class="arch-row" style="margin-left:100px;">
+        <div class="arch-arrow">↓</div>
+      </div>
+      <div class="arch-row">
+        <div class="arch-label">Storage</div>
+        <div class="arch-box">Elasticsearch<br><small style="font-size:0.7rem;color:var(--text-dim)">vector database</small></div>
+        <div class="arch-arrow">←</div>
+        <div class="arch-box">ingestionService.js<br><small style="font-size:0.7rem;color:var(--text-dim)">save to index</small></div>
+        <div class="arch-arrow">←</div>
+        <div class="arch-box">embeddingService.js<br><small style="font-size:0.7rem;color:var(--text-dim)">AWS Titan → numbers</small></div>
+      </div>
+
+      <div class="arch-divider"></div>
+
+      <div class="arch-pipeline-label">② Question Answering (happens on every query)</div>
+      <div class="arch-row">
+        <div class="arch-label">Input</div>
+        <div class="arch-box">❓ Question</div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-box">routes/search.js</div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-box">embeddingService.js<br><small style="font-size:0.7rem;color:var(--text-dim)">question → numbers</small></div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-box">retrievalService.js<br><small style="font-size:0.7rem;color:var(--text-dim)">find top-5 chunks</small></div>
+      </div>
+      <div class="arch-row" style="margin-left:100px;">
+        <div class="arch-arrow">↓</div>
+      </div>
+      <div class="arch-row">
+        <div class="arch-label">Output</div>
+        <div class="arch-box">✅ Final Answer</div>
+        <div class="arch-arrow">←</div>
+        <div class="arch-box">llmService.js<br><small style="font-size:0.7rem;color:var(--text-dim)">AWS Nova Lite</small></div>
+        <div class="arch-arrow">←</div>
+        <div class="arch-box">Context assembled<br><small style="font-size:0.7rem;color:var(--text-dim)">chunks joined as text</small></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── Section 4: Ingestion Pipeline ───────────────────── -->
+<section id="ingestion">
+  <div class="container">
+    <div class="section-label">Pipeline 1</div>
+    <h2 class="section-title">Uploading a document — step by step</h2>
+    <p class="section-intro">
+      This is what happens behind the scenes when you POST a PDF to
+      <code style="background:var(--surface);padding:0.1em 0.4em;border-radius:4px;font-size:0.9em">/api/upload</code>.
+      Each step hands off work to a dedicated service file.
+    </p>
+    <div class="pipeline-wrapper">
+      <div class="pipeline">
+        <div class="p-step">
+          <div class="p-step-num">Step 1</div>
+          <span class="p-step-icon">📤</span>
+          <h4>Receive PDF</h4>
+          <p>Multer middleware reads the incoming PDF file into memory</p>
+          <span class="file-tag">routes/upload.js</span>
+        </div>
+        <div class="p-arrow">→</div>
+        <div class="p-step">
+          <div class="p-step-num">Step 2</div>
+          <span class="p-step-icon">📝</span>
+          <h4>Extract Text</h4>
+          <p>pdf-parse reads the binary PDF buffer and returns raw text</p>
+          <span class="file-tag">pdfService.js</span>
+        </div>
+        <div class="p-arrow">→</div>
+        <div class="p-step">
+          <div class="p-step-num">Step 3</div>
+          <span class="p-step-icon">✂️</span>
+          <h4>Chunk Text</h4>
+          <p>Split text into 1000-char pieces with 200-char overlaps</p>
+          <span class="file-tag">chunkService.js</span>
+        </div>
+        <div class="p-arrow">→</div>
+        <div class="p-step">
+          <div class="p-step-num">Step 4</div>
+          <span class="p-step-icon">🧮</span>
+          <h4>Embed Each Chunk</h4>
+          <p>AWS Titan converts each text chunk into 1024 numbers</p>
+          <span class="file-tag">embeddingService.js</span>
+        </div>
+        <div class="p-arrow">→</div>
+        <div class="p-step">
+          <div class="p-step-num">Step 5</div>
+          <span class="p-step-icon">🗄️</span>
+          <h4>Store in Elasticsearch</h4>
+          <p>Chunk text + embedding vector saved to <em>pdf_chunks</em> index</p>
+          <span class="file-tag">ingestionService.js</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout">
+      <span class="callout-icon">📌</span>
+      <div class="callout-body">
+        <h4>Why overlap when chunking?</h4>
+        <p>
+          If a sentence like "The CEO resigned because of…" falls right at
+          the boundary of two chunks, one chunk loses the beginning and the
+          other loses the ending. A 200-character overlap makes sure important
+          sentences are fully captured in at least one chunk.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── Section 5: Query Pipeline ───────────────────────── -->
+<section id="query">
+  <div class="container">
+    <div class="section-label">Pipeline 2</div>
+    <h2 class="section-title">Asking a question — step by step</h2>
+    <p class="section-intro">
+      When you POST a question to
+      <code style="background:var(--surface);padding:0.1em 0.4em;border-radius:4px;font-size:0.9em">/api/ask</code>,
+      four things happen in sequence before you get an answer.
+    </p>
+    <div class="pipeline-wrapper">
+      <div class="pipeline">
+        <div class="p-step">
+          <div class="p-step-num">Step 1</div>
+          <span class="p-step-icon">❓</span>
+          <h4>Receive Question</h4>
+          <p>Express route reads the <em>question</em> field from the request body</p>
+          <span class="file-tag">routes/search.js</span>
+        </div>
+        <div class="p-arrow">→</div>
+        <div class="p-step">
+          <div class="p-step-num">Step 2</div>
+          <span class="p-step-icon">🔢</span>
+          <h4>Embed Question</h4>
+          <p>Same Titan model turns the question text into 1024 numbers</p>
+          <span class="file-tag">embeddingService.js</span>
+        </div>
+        <div class="p-arrow">→</div>
+        <div class="p-step">
+          <div class="p-step-num">Step 3</div>
+          <span class="p-step-icon">🔍</span>
+          <h4>Vector Search</h4>
+          <p>Elasticsearch kNN finds 5 stored chunks with closest numbers</p>
+          <span class="file-tag">retrievalService.js</span>
+        </div>
+        <div class="p-arrow">→</div>
+        <div class="p-step">
+          <div class="p-step-num">Step 4</div>
+          <span class="p-step-icon">🤖</span>
+          <h4>Ask the LLM</h4>
+          <p>Chunks + question sent to Amazon Nova Lite with strict context prompt</p>
+          <span class="file-tag">llmService.js</span>
+        </div>
+        <div class="p-arrow">→</div>
+        <div class="p-step">
+          <div class="p-step-num">Step 5</div>
+          <span class="p-step-icon">✅</span>
+          <h4>Return Answer</h4>
+          <p>The model's answer text is returned as JSON to the caller</p>
+          <span class="file-tag">routes/search.js</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout">
+      <span class="callout-icon">🛡️</span>
+      <div class="callout-body">
+        <h4>Why does the prompt say "only use the context"?</h4>
+        <p>
+          Without that instruction, the LLM might mix in knowledge from its
+          training data and give you an answer that <em>sounds</em> right but
+          isn't from your document. The strict prompt keeps the model honest
+          — if the answer isn't in your PDF, it says so.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── Section 6: File Explorer ─────────────────────────── -->
+<section id="files">
+  <div class="container">
+    <div class="section-label">Codebase Tour</div>
+    <h2 class="section-title">Every file explained</h2>
+    <p class="section-intro">
+      Here's the complete project structure, then a card for each file
+      explaining what it does, why it exists, and its role in the RAG pipeline.
+    </p>
+
+    <!-- File Tree -->
+    <div class="filetree">
+<span class="ft-root">RAG/</span>
+├── <span class="ft-file entry">server.js</span>         <span class="ft-badge entry">entry point</span>
+├── <span class="ft-file config">package.json</span>      <span class="ft-badge config">config</span>
+│
+├── <span class="ft-folder">config/</span>
+│   └── <span class="ft-file config">aws.js</span>           <span class="ft-badge config">config</span>
+│
+├── <span class="ft-folder">routes/</span>
+│   ├── <span class="ft-file route">upload.js</span>        <span class="ft-badge route">route</span>
+│   └── <span class="ft-file route">search.js</span>        <span class="ft-badge route">route</span>
+│
+└── <span class="ft-folder">services/</span>
+    ├── <span class="ft-file svc">chunkService.js</span>       <span class="ft-badge svc">service</span>
+    ├── <span class="ft-file svc">elasticsearchService.js</span> <span class="ft-badge svc">service</span>
+    ├── <span class="ft-file svc">embeddingService.js</span>   <span class="ft-badge svc">service</span>
+    ├── <span class="ft-file svc">indexService.js</span>       <span class="ft-badge svc">service</span>
+    ├── <span class="ft-file svc">ingestionService.js</span>   <span class="ft-badge svc">service</span>
+    ├── <span class="ft-file svc">llmService.js</span>         <span class="ft-badge svc">service</span>
+    ├── <span class="ft-file svc">pdfService.js</span>         <span class="ft-badge svc">service</span>
+    ├── <span class="ft-file svc">retrievalService.js</span>   <span class="ft-badge svc">service</span>
+    └── <span class="ft-file svc">s3Service.js</span>          <span class="ft-badge svc">service</span>
+    </div>
+
+    <!-- ── Entry Point ── -->
+    <div class="file-section-label"><h3>Entry Point</h3></div>
+    <div class="file-cards">
+
+      <div class="file-card" onclick="toggleCard(this)">
+        <div class="file-card-header">
+          <div class="file-card-icon">🚀</div>
+          <div class="file-card-meta">
+            <div class="file-card-name">server.js</div>
+            <div class="file-card-role">The front door — starts the web server and wires routes together</div>
+          </div>
+          <div class="file-card-chevron">▼</div>
+        </div>
+        <div class="file-card-body">
+          <p>
+            This is the <strong>first file Node.js runs</strong> when you type
+            <code style="background:var(--surface);padding:0.1em 0.4em;border-radius:4px">node server.js</code>.
+            It creates an Express web server, applies two middleware layers
+            (CORS for browser access, JSON body parsing), then connects the
+            two route files to handle incoming HTTP requests.
+          </p>
+          <p>
+            Think of it as the <em>reception desk</em> of a building. It
+            doesn't do any work itself — it just greets every incoming request
+            and says "go to the upload desk" or "go to the search desk"
+            depending on the URL.
+          </p>
+          <div class="detail-grid">
+            <div class="detail-item"><label>Starts on</label><span>PORT from .env file</span></div>
+            <div class="detail-item"><label>Routes mounted</label><span>/api/upload · /api/search · /api/ask</span></div>
+            <div class="detail-item"><label>Framework</label><span>Express 5</span></div>
+          </div>
+          <div class="code-snippet">app.use("/api", uploadRoute);   // handles POST /api/upload
+app.use("/api", searchRoute);   // handles POST /api/search and /api/ask
+app.listen(process.env.PORT, () => console.log(`Server running`));</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ── Config ── -->
+    <div class="file-section-label"><h3>Configuration</h3></div>
+    <div class="file-cards">
+
+      <div class="file-card" onclick="toggleCard(this)">
+        <div class="file-card-header">
+          <div class="file-card-icon">📦</div>
+          <div class="file-card-meta">
+            <div class="file-card-name">package.json</div>
+            <div class="file-card-role">Project manifest — lists every library this project depends on</div>
+          </div>
+          <div class="file-card-chevron">▼</div>
+        </div>
+        <div class="file-card-body">
+          <p>
+            This is the project's <em>ingredient list</em>. It tells Node.js
+            the name of the project, what version it is, and exactly which
+            third-party packages to download from the internet when you run
+            <code style="background:var(--surface);padding:0.1em 0.4em;border-radius:4px">npm install</code>.
+          </p>
+          <p>
+            Without this file, someone else cloning your project would not
+            know which libraries are needed. <code style="background:var(--surface);padding:0.1em 0.4em;border-radius:4px">"type": "commonjs"</code>
+            tells Node to use the older <code style="background:var(--surface);padding:0.1em 0.4em;border-radius:4px">require()</code>
+            style imports (as opposed to ES module <code style="background:var(--surface);padding:0.1em 0.4em;border-radius:4px">import</code>).
+          </p>
+          <div class="tag-list">
+            <span class="tag">@aws-sdk/client-bedrock-runtime</span>
+            <span class="tag">@aws-sdk/client-s3</span>
+            <span class="tag">@elastic/elasticsearch</span>
+            <span class="tag">express</span>
+            <span class="tag">multer</span>
+            <span class="tag">pdf-parse</span>
+            <span class="tag">dotenv</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="file-card" onclick="toggleCard(this)">
+        <div class="file-card-header">
+          <div class="file-card-icon">☁️</div>
+          <div class="file-card-meta">
+            <div class="file-card-name">config/aws.js</div>
+            <div class="file-card-role">Creates and exports the S3 client so every service can reuse it</div>
+          </div>
+          <div class="file-card-chevron">▼</div>
+        </div>
+        <div class="file-card-body">
+          <p>
+            Instead of creating a new AWS S3 connection object in every file
+            that needs it, this tiny file creates it <strong>once</strong>
+            and exports it. Any file that needs to talk to S3 just does
+            <code style="background:var(--surface);padding:0.1em 0.4em;border-radius:4px">require('../config/aws')</code>
+            and gets the ready-to-use client.
+          </p>
+          <p>
+            This is the <em>single source of truth</em> for AWS S3 configuration.
+            If you need to change the region or credentials, you change it
+            in one place, not everywhere.
+          </p>
+          <div class="detail-grid">
+            <div class="detail-item"><label>Service</label><span>Amazon S3</span></div>
+            <div class="detail-item"><label>Config source</label><span>AWS_REGION env variable</span></div>
+            <div class="detail-item"><label>Pattern</label><span>Singleton export</span></div>
+          </div>
+          <div class="code-snippet">const s3 = new S3Client({ region: process.env.AWS_REGION });
+module.exports = s3;  // reused by s3Service.js</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ── Routes ── -->
+    <div class="file-section-label"><h3>Routes — the HTTP API layer</h3></div>
+    <div class="file-cards">
+
+      <div class="file-card" onclick="toggleCard(this)">
+        <div class="file-card-header">
+          <div class="file-card-icon">📤</div>
+          <div class="file-card-meta">
+            <div class="file-card-name">routes/upload.js</div>
+            <div class="file-card-role">Handles POST /api/upload — orchestrates the entire ingestion pipeline</div>
+          </div>
+          <div class="file-card-chevron">▼</div>
+        </div>
+        <div class="file-card-body">
+          <p>
+            This is the <strong>conductor</strong> of the upload orchestra.
+            It doesn't do any of the hard work itself — it calls the right
+            service at the right time and passes data along the chain.
+          </p>
+          <p>
+            When a PDF arrives, it uses <strong>Multer</strong> to grab the
+            file bytes from the HTTP request, then calls each service in order:
+            extract text → clean whitespace → chunk → create index →
+            embed each chunk → store each chunk. Finally it sends back a
+            JSON summary of what was done.
+          </p>
+          <div class="detail-grid">
+            <div class="detail-item"><label>HTTP method</label><span>POST</span></div>
+            <div class="detail-item"><label>URL</label><span>/api/upload</span></div>
+            <div class="detail-item"><label>Input</label><span>multipart/form-data with "pdf" field</span></div>
+            <div class="detail-item"><label>Output</label><span>{ success, document, pages, totalChunks }</span></div>
+          </div>
+          <div class="code-snippet">// Orchestration order inside the route handler:
+const data     = await pdf(req.file.buffer);         // 1. extract
+const chunks   = chunkText(data.text, filename);     // 2. chunk
+await createIndex();                                  // 3. ensure index
+for (const chunk of chunks) {
+  const embedding = await generateEmbedding(chunk);  // 4. embed
+  await storeChunk(chunk, embedding);                // 5. store
+}</div>
+        </div>
+      </div>
+
+      <div class="file-card" onclick="toggleCard(this)">
+        <div class="file-card-header">
+          <div class="file-card-icon">🔍</div>
+          <div class="file-card-meta">
+            <div class="file-card-name">routes/search.js</div>
+            <div class="file-card-role">Handles POST /api/search and /api/ask — powers both retrieval and full Q&amp;A</div>
+          </div>
+          <div class="file-card-chevron">▼</div>
+        </div>
+        <div class="file-card-body">
+          <p>
+            This file exposes <strong>two endpoints</strong>. The
+            <code style="background:var(--surface);padding:0.1em 0.4em;border-radius:4px">/search</code>
+            endpoint is for debugging — it just returns the raw retrieved
+            chunks so you can see what the vector search found. The
+            <code style="background:var(--surface);padding:0.1em 0.4em;border-radius:4px">/ask</code>
+            endpoint runs the full pipeline: embed question → retrieve chunks
+            → assemble context → call LLM → return the natural language answer.
+          </p>
+          <div class="detail-grid">
+            <div class="detail-item"><label>/search output</label><span>Top-5 matching chunks (raw)</span></div>
+            <div class="detail-item"><label>/ask output</label><span>{ question, answer, chunks }</span></div>
+          </div>
+          <div class="code-snippet">// /ask endpoint — the full RAG loop:
+const queryEmbedding = await generateEmbedding(question);  // 1. embed Q
+const chunks         = await retrieveChunks(queryEmbedding); // 2. search
+const context        = chunks.map(c => c._source.chunkText).join("\n\n"); // 3. assemble
+const answer         = await generateAnswer(context, question); // 4. LLM</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ── Services ── -->
+    <div class="file-section-label"><h3>Services — the worker layer</h3></div>
+    <div class="file-cards">
+
+      <div class="file-card" onclick="toggleCard(this)">
+        <div class="file-card-header">
+          <div class="file-card-icon">📄</div>
+          <div class="file-card-meta">
+            <div class="file-card-name">services/pdfService.js</div>
+            <div class="file-card-role">Reads a PDF file buffer and returns plain text</div>
+          </div>
+          <div class="file-card-chevron">▼</div>
+        </div>
+        <div class="file-card-body">
+          <p>
+            A thin wrapper around the <strong>pdf-parse</strong> library.
+            You give it a binary file buffer (the raw bytes of a PDF),
+            and it hands back a plain string of all the text inside — no
+            formatting, no images, just the words.
+          </p>
+          <p>
+            <em>Why a separate file?</em> Because if you ever want to swap
+            pdf-parse for a different PDF library, you only change this one
+            file. Everything else in the project keeps working.
+          </p>
+          <div class="detail-grid">
+            <div class="detail-item"><label>Input</label><span>Binary file buffer</span></div>
+            <div class="detail-item"><label>Output</label><span>Plain text string</span></div>
+            <div class="detail-item"><label>Library</label><span>pdf-parse</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="file-card" onclick="toggleCard(this)">
+        <div class="file-card-header">
+          <div class="file-card-icon">✂️</div>
+          <div class="file-card-meta">
+            <div class="file-card-name">services/chunkService.js</div>
+            <div class="file-card-role">Slices a long text string into overlapping pieces called chunks</div>
+          </div>
+          <div class="file-card-chevron">▼</div>
+        </div>
+        <div class="file-card-body">
+          <p>
+            Imagine you have a very long text. You can't feed it all to the
+            embedding model at once (models have limits), and even if you
+            could, searching across a single giant blob is inefficient.
+            This service chops the text into manageable pieces.
+          </p>
+          <p>
+            The <strong>overlap</strong> is the clever part: each chunk
+            shares 200 characters with the previous one. This ensures
+            a sentence that spans the boundary of two chunks is fully
+            represented in at least one of them, preventing context loss.
+          </p>
+          <div class="detail-grid">
+            <div class="detail-item"><label>Chunk size</label><span>1000 characters (default)</span></div>
+            <div class="detail-item"><label>Overlap</label><span>200 characters (default)</span></div>
+            <div class="detail-item"><label>Output per chunk</label><span>{ chunkId, documentName, chunkText, startPosition, endPosition }</span></div>
+          </div>
+          <div class="code-snippet">// Sliding window logic:
+while (start < text.length) {
+  chunks.push(text.slice(start, start + 1000));
+  start += 1000 - 200;  // advance by 800, so 200 chars overlap
+}</div>
+        </div>
+      </div>
+
+      <div class="file-card" onclick="toggleCard(this)">
+        <div class="file-card-header">
+          <div class="file-card-icon">🧠</div>
+          <div class="file-card-meta">
+            <div class="file-card-name">services/embeddingService.js</div>
+            <div class="file-card-role">Converts any text string into a 1024-number vector using AWS Bedrock</div>
+          </div>
+          <div class="file-card-chevron">▼</div>
+        </div>
+        <div class="file-card-body">
+          <p>
+            This is the <strong>translation layer</strong> — it turns human
+            language into the mathematics that computers can compare.
+            It calls Amazon Bedrock's <em>Titan Embed Text v2</em> model,
+            which returns an array of 1024 floating-point numbers that
+            encode the semantic meaning of the text.
+          </p>
+          <p>
+            The same service is used for <em>both</em> storing document chunks
+            and for embedding user questions. This symmetry is crucial —
+            both must use the same model so the numbers are in the same
+            mathematical space and comparisons work correctly.
+          </p>
+          <div class="detail-grid">
+            <div class="detail-item"><label>Model</label><span>amazon.titan-embed-text-v2:0</span></div>
+            <div class="detail-item"><label>Output dimensions</label><span>1024 numbers</span></div>
+            <div class="detail-item"><label>Cloud</label><span>AWS Bedrock (us-east-1)</span></div>
+          </div>
+          <div class="code-snippet">// Sends text → gets back [0.123, -0.456, 0.789, ... (×1024)]
+const response = await client.send(new InvokeModelCommand({
+  modelId: "amazon.titan-embed-text-v2:0",
+  body: JSON.stringify({ inputText: text })
+}));
+return responseBody.embedding;  // 1024 numbers</div>
+        </div>
+      </div>
+
+      <div class="file-card" onclick="toggleCard(this)">
+        <div class="file-card-header">
+          <div class="file-card-icon">🔌</div>
+          <div class="file-card-meta">
+            <div class="file-card-name">services/elasticsearchService.js</div>
+            <div class="file-card-role">Creates and exports the Elasticsearch client connection — used by all storage services</div>
+          </div>
+          <div class="file-card-chevron">▼</div>
+        </div>
+        <div class="file-card-body">
+          <p>
+            Just like <code style="background:var(--surface);padding:0.1em 0.4em;border-radius:4px">config/aws.js</code>
+            for S3, this file is the <strong>single connection point</strong>
+            to your local Elasticsearch instance. It creates one client
+            object pointing to <code style="background:var(--surface);padding:0.1em 0.4em;border-radius:4px">http://localhost:9200</code>
+            and exports it.
+          </p>
+          <p>
+            Three other service files import this — <em>indexService</em>,
+            <em>ingestionService</em>, and <em>retrievalService</em>. They
+            all share the same connection pool, which is efficient and prevents
+            opening too many connections.
+          </p>
+          <div class="detail-grid">
+            <div class="detail-item"><label>Target</label><span>localhost:9200</span></div>
+            <div class="detail-item"><label>Library</label><span>@elastic/elasticsearch v8</span></div>
+            <div class="detail-item"><label>Pattern</label><span>Shared singleton</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="file-card" onclick="toggleCard(this)">
+        <div class="file-card-header">
+          <div class="file-card-icon">🏗️</div>
+          <div class="file-card-meta">
+            <div class="file-card-name">services/indexService.js</div>
+            <div class="file-card-role">Creates the Elasticsearch index with the correct schema — runs once before storing</div>
+          </div>
+          <div class="file-card-chevron">▼</div>
+        </div>
+        <div class="file-card-body">
+          <p>
+            Before you can store anything in Elasticsearch, you need an
+            <strong>index</strong> — think of it as a table in a database.
+            This service creates the <em>pdf_chunks</em> index with a precise
+            schema (called a <em>mapping</em>) that tells Elasticsearch the
+            exact type of every field.
+          </p>
+          <p>
+            The most important field in the mapping is <strong>embedding</strong>
+            — defined as a <code style="background:var(--surface);padding:0.1em 0.4em;border-radius:4px">dense_vector</code>
+            with 1024 dimensions and cosine similarity. This is what enables
+            the magical nearest-neighbor search. The service also checks
+            if the index already exists so it never duplicates it.
+          </p>
+          <div class="detail-grid">
+            <div class="detail-item"><label>Index name</label><span>pdf_chunks</span></div>
+            <div class="detail-item"><label>Vector field</label><span>embedding (1024-dim, cosine)</span></div>
+            <div class="detail-item"><label>Safety</label><span>Checks existence before creating</span></div>
+          </div>
+          <div class="code-snippet">embedding: {
+  type: "dense_vector",
+  dims: 1024,       // must match Titan model output
+  index: true,      // enables fast kNN search
+  similarity: "cosine"  // how to measure "closeness"
+}</div>
+        </div>
+      </div>
+
+      <div class="file-card" onclick="toggleCard(this)">
+        <div class="file-card-header">
+          <div class="file-card-icon">💾</div>
+          <div class="file-card-meta">
+            <div class="file-card-name">services/ingestionService.js</div>
+            <div class="file-card-role">Saves one chunk + its embedding vector into Elasticsearch</div>
+          </div>
+          <div class="file-card-chevron">▼</div>
+        </div>
+        <div class="file-card-body">
+          <p>
+            The <strong>storage worker</strong>. Given a chunk object and its
+            embedding array, it bundles them together into a document and
+            saves it to the <em>pdf_chunks</em> index. Each document gets a
+            deterministic ID in the format
+            <code style="background:var(--surface);padding:0.1em 0.4em;border-radius:4px">filename-chunkNumber</code>
+            so re-uploading the same file overwrites rather than duplicates.
+          </p>
+          <div class="detail-grid">
+            <div class="detail-item"><label>Stores per call</label><span>1 chunk + its 1024-number vector</span></div>
+            <div class="detail-item"><label>Document ID format</label><span>report.pdf-1, report.pdf-2, …</span></div>
+          </div>
+          <div class="code-snippet">await client.index({
+  index: "pdf_chunks",
+  id: `${chunk.documentName}-${chunk.chunkId}`,
+  document: { ...chunk, embedding }  // text + numbers together
+});</div>
+        </div>
+      </div>
+
+      <div class="file-card" onclick="toggleCard(this)">
+        <div class="file-card-header">
+          <div class="file-card-icon">🔍</div>
+          <div class="file-card-meta">
+            <div class="file-card-name">services/retrievalService.js</div>
+            <div class="file-card-role">Queries Elasticsearch with a vector and returns the most semantically similar chunks</div>
+          </div>
+          <div class="file-card-chevron">▼</div>
+        </div>
+        <div class="file-card-body">
+          <p>
+            This is the <strong>search engine</strong> of the RAG system.
+            It receives the question embedding (1024 numbers) and asks
+            Elasticsearch to find the 5 stored chunks whose embedding
+            vectors are <em>most similar</em> using the kNN (k-Nearest
+            Neighbors) algorithm.
+          </p>
+          <p>
+            "Most similar vectors" = "chunks whose meaning is closest to
+            the question's meaning". This is semantic search — not keyword
+            matching. You could ask "What caused revenue decline?" and it
+            would find a chunk that says "sales dropped due to supply chain
+            issues" even without any word overlap.
+          </p>
+          <div class="detail-grid">
+            <div class="detail-item"><label>Algorithm</label><span>kNN (k-Nearest Neighbors)</span></div>
+            <div class="detail-item"><label>Returns</label><span>Top 5 chunks (topK = 5)</span></div>
+            <div class="detail-item"><label>Candidates scanned</label><span>100 (num_candidates)</span></div>
+          </div>
+          <div class="code-snippet">knn: {
+  field: "embedding",        // compare against stored vectors
+  query_vector: queryEmbedding,  // the question's 1024 numbers
+  k: 5,                      // return top 5 closest chunks
+  num_candidates: 100        // scan 100 to pick best 5
+}</div>
+        </div>
+      </div>
+
+      <div class="file-card" onclick="toggleCard(this)">
+        <div class="file-card-header">
+          <div class="file-card-icon">💬</div>
+          <div class="file-card-meta">
+            <div class="file-card-name">services/llmService.js</div>
+            <div class="file-card-role">Sends context + question to Amazon Nova Lite and returns the AI-generated answer</div>
+          </div>
+          <div class="file-card-chevron">▼</div>
+        </div>
+        <div class="file-card-body">
+          <p>
+            The <strong>brain</strong> of the system. It calls Amazon Nova Lite
+            (a fast, cheap, capable language model on AWS Bedrock) with a
+            carefully crafted prompt that instructs the model to answer
+            <em>only</em> from the provided context.
+          </p>
+          <p>
+            The prompt has three parts: a <em>system instruction</em> (be a
+            helpful assistant, only use the context), a <em>context block</em>
+            (the joined text of the top-5 retrieved chunks), and the
+            <em>user question</em>. If the answer isn't found in the context,
+            the model is told to say so — this prevents hallucination.
+          </p>
+          <div class="detail-grid">
+            <div class="detail-item"><label>Model</label><span>amazon.nova-lite-v1:0</span></div>
+            <div class="detail-item"><label>Cloud</label><span>AWS Bedrock</span></div>
+            <div class="detail-item"><label>Guardrail</label><span>"Only use context, don't guess"</span></div>
+          </div>
+          <div class="code-snippet">const prompt = `
+You are a helpful AI assistant.
+Answer ONLY using the information in the context below.
+If not found, say "I couldn't find the answer in the documents."
+
+Context: ${context}
+Question: ${question}
+Answer:`;</div>
+        </div>
+      </div>
+
+      <div class="file-card" onclick="toggleCard(this)">
+        <div class="file-card-header">
+          <div class="file-card-icon">🪣</div>
+          <div class="file-card-meta">
+            <div class="file-card-name">services/s3Service.js</div>
+            <div class="file-card-role">Uploads a file to an Amazon S3 bucket for persistent cloud storage</div>
+          </div>
+          <div class="file-card-chevron">▼</div>
+        </div>
+        <div class="file-card-body">
+          <p>
+            Amazon S3 is a cloud storage service (like Google Drive for
+            servers). This file provides a function to upload a PDF to your
+            configured S3 bucket. It's currently a utility service available
+            in the project but not wired into the active upload route —
+            meaning it can be optionally used to also <em>archive</em> the
+            original PDFs in the cloud alongside storing their chunks in
+            Elasticsearch.
+          </p>
+          <div class="detail-grid">
+            <div class="detail-item"><label>Cloud service</label><span>Amazon S3</span></div>
+            <div class="detail-item"><label>Config</label><span>S3_BUCKET_NAME env variable</span></div>
+            <div class="detail-item"><label>Role in RAG</label><span>Optional original-file archive</span></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+</section>
+
+<!-- ─── Section 7: Tech Stack ─────────────────────────────── -->
+<section id="tech">
+  <div class="container">
+    <div class="section-label">Dependencies</div>
+    <h2 class="section-title">Every library and what it does</h2>
+    <p class="section-intro">
+      These are the packages listed in <code style="background:var(--surface);padding:0.1em 0.4em;border-radius:4px">package.json</code>.
+      Each one is a specialist brought in for a specific job.
+    </p>
+    <div class="tech-grid">
+      <div class="tech-card">
+        <div class="tech-pkg">express</div>
+        <div class="tech-desc">The web server framework. Listens for HTTP requests and routes them to the right handler function.</div>
+      </div>
+      <div class="tech-card">
+        <div class="tech-pkg">multer</div>
+        <div class="tech-desc">Middleware that handles file uploads in HTTP requests. Reads the PDF binary into memory so the code can use it.</div>
+      </div>
+      <div class="tech-card">
+        <div class="tech-pkg">pdf-parse</div>
+        <div class="tech-desc">Opens a PDF binary buffer and extracts all the plain text from it. Handles the complex PDF format so you don't have to.</div>
+      </div>
+      <div class="tech-card">
+        <div class="tech-pkg">dotenv</div>
+        <div class="tech-desc">Reads a <code>.env</code> file and loads variables like AWS keys into <code>process.env</code> so secrets stay out of code.</div>
+      </div>
+      <div class="tech-card">
+        <div class="tech-pkg">cors</div>
+        <div class="tech-desc">Adds HTTP headers that let browsers on other origins (like a frontend app) call this API without being blocked.</div>
+      </div>
+      <div class="tech-card">
+        <div class="tech-pkg">@elastic/elasticsearch</div>
+        <div class="tech-desc">The official client library for Elasticsearch. Used to create indexes, store documents, and run kNN vector searches.</div>
+      </div>
+      <div class="tech-card">
+        <div class="tech-pkg">@aws-sdk/client-bedrock-runtime</div>
+        <div class="tech-desc">AWS SDK for calling Bedrock AI models (Titan for embeddings, Nova Lite for text generation).</div>
+      </div>
+      <div class="tech-card">
+        <div class="tech-pkg">@aws-sdk/client-s3</div>
+        <div class="tech-desc">AWS SDK for S3 object storage. Used by s3Service.js to upload original PDF files to a cloud bucket.</div>
+      </div>
+      <div class="tech-card">
+        <div class="tech-pkg">@aws-sdk/credential-provider-node</div>
+        <div class="tech-desc">Automatically reads AWS credentials from environment variables, <code>~/.aws/credentials</code> file, or IAM roles — no manual wiring needed.</div>
+      </div>
+      <div class="tech-card">
+        <div class="tech-pkg">@opensearch-project/opensearch</div>
+        <div class="tech-desc">Client library for AWS OpenSearch (Elasticsearch-compatible). Included for when the database is moved to AWS-managed OpenSearch.</div>
+      </div>
+      <div class="tech-card">
+        <div class="tech-pkg">aws-opensearch-connector</div>
+        <div class="tech-desc">Adds AWS Signature V4 request signing to the OpenSearch client so secured AWS endpoints accept connections.</div>
+      </div>
+      <div class="tech-card">
+        <div class="tech-pkg">pdf2json · aws4 · @aws-sdk/signature-v4</div>
+        <div class="tech-desc">Supporting utilities — alternative PDF parser, request signing helpers for AWS APIs requiring SigV4 authentication.</div>
+      </div>
+    </div>
+
+    <div class="callout" style="margin-top:2rem;">
+      <span class="callout-icon">🏗️</span>
+      <div class="callout-body">
+        <h4>Local vs Cloud — where does data live?</h4>
+        <p>
+          <strong>Elasticsearch</strong> runs locally on your machine
+          (port 9200) — it's your vector database.
+          <strong>AWS Bedrock</strong> is a cloud API — it's where the AI
+          models live (Titan for embeddings, Nova Lite for answers).
+          <strong>S3</strong> is optional cloud storage for the original PDF files.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── Footer ─────────────────────────────────────────────── -->
+<footer>
+  <p>RAG Learning Documentation &mdash; built from the <strong>playground/RAG</strong> workspace</p>
+  <p style="margin-top:0.5rem;color:var(--text-dim)">
+    Node.js · Express · AWS Bedrock · Elasticsearch · Amazon Nova Lite · Titan Embed v2
+  </p>
+</footer>
+
+<script>
+  function toggleCard(card) {
+    card.classList.toggle('open');
+  }
+</script>
+
+</body>
+</html>
