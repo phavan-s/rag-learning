@@ -1,7 +1,5 @@
 const express = require("express");
 
-console.log("Search route loaded");
-
 const { generateEmbedding } = require("../services/embeddingService");
 const { retrieveChunks } = require("../services/retrievalService");
 const { generateAnswer } = require("../services/llmService");
@@ -20,11 +18,9 @@ router.post("/search", async (req, res) => {
       });
     }
 
-    const queryEmbedding =
-      await generateEmbedding(question);
+    const queryEmbedding = await generateEmbedding(question);
 
-    const chunks =
-      await retrieveChunks(queryEmbedding);
+    const chunks = await retrieveChunks(question, queryEmbedding);
 
     res.json({
       question,
@@ -60,8 +56,7 @@ router.post("/ask", async (req, res) => {
       await generateEmbedding(question);
 
     // Step 2
-    const chunks =
-      await retrieveChunks(queryEmbedding);
+    const chunks = await retrieveChunks(question, queryEmbedding);
 
     // Step 3
     const context =
